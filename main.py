@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import FastAPI
 import connection
 from bson import ObjectId
+from json import dumps
 from schematics.models import Model
 from schematics.types import StringType, EmailType
 
@@ -33,15 +34,14 @@ def email_exists(email):
         return user_exist
 
 def check_login_creds(email, password):
-    if email_exists(email):
+    if not email_exists(email):
         activeuser = connection.db.users.find(
             {'email': email}
         )
-        activeuser = dict(activeuser)
-        print(activeuser)
-        return activeuser
-    else:
-        return "Invalid Email"
+        for actuser in activeuser:
+            actuser = dict(actuser)
+            actuser['_id'] = str(actuser['_id'])    
+            return actuser
 
 
 app = FastAPI()
@@ -78,14 +78,15 @@ def signup(email, username: str, password: str):
 def login(email, password):
     def log_user_in(creds):
         if creds['email'] == email and creds['password'] == password:
-            return {"message": creds['name'] + 'successfully logged in'}
+            return {"message": creds['name'] + ' successfully logged in'}
         else:
             return {"message":"Invalid credentials!!"}
     # Read email from database to validate if user exists and checks if password matches
     logger = check_login_creds(email, password)
-    print(logger)
-    if bool(logger) == True:
-        return {"message":logger}
+    if bool(logger) != True:
+        if logger == None:
+            logger = "Invalid Email"
+            return {"message":logger}
     else:
         status = log_user_in(logger)
         return {"Info":status}
